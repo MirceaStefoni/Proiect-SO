@@ -8,6 +8,9 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <linux/limits.h>
+
+int debug_mode = 0;
 
 
 void printToFile(int fd, const char *str)
@@ -41,13 +44,13 @@ void parcurgeDirector(const char *numeDirector, int snapshot_fd)
             continue;
         }
 
-        if (stat(path, &fileStat) < 0)
+        if (lstat(path, &fileStat) < 0)
         {
             perror("stat");
             exit(EXIT_FAILURE);
         }
 
-     if (S_ISDIR(fileStat.st_mode))
+        if (S_ISDIR(fileStat.st_mode))
         {
             char dir_msg[PATH_MAX];
             snprintf(dir_msg, sizeof(dir_msg), "(Director)  %s\n", path);
@@ -94,26 +97,99 @@ void parcurgeDirector(const char *numeDirector, int snapshot_fd)
     closedir(dir);
 }
 
-int main(int argc, char *argv[]) 
+int isDirector(const char* path)
 {
-    if (argc != 2) 
+    struct stat fileStat;
+
+    if(lstat(path, &fileStat) < 0)
     {
-        fprintf(stderr, "Folosire: %s nume_director\n", argv[0]);
+        printf("problema aici\n\n");
+        perror("stat");
         exit(EXIT_FAILURE);
     }
 
-    int snapshot_fd = open("snapshot", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (S_ISDIR(fileStat.st_mode))
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+int createSnapshot(const char* snapshot_name, const char* output_name)
+{
+    char nume_path[100];
+    snprintf(nume_path, 100, "%s/%s",output_name, snapshot_name);
+
+    if(debug_mode)
+    {
+        printf("nume path: %s\n",nume_path);
+    }
+
+    int snapshot_fd = open(nume_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
     if (snapshot_fd == -1) 
     {
         perror("open");
         exit(EXIT_FAILURE);
     }
+    return snapshot_fd;
+}
 
-    parcurgeDirector(argv[1], snapshot_fd);
+int main(int argc, char *argv[]) 
+{
+    
+    printf("DebugMode 1 sau 0: ");
+    scanf("%d",&debug_mode);
 
-    close(snapshot_fd);
-    printf("Success.\n");
+    if(debug_mode)
+    {
+        printf("argc = %d\n",argc);
+    }
+
+    if (argc < 4 || argc > 13) // minim 1  -  max 10
+    {        
+        perror("Utilizare incorecta:  ./p -o output_dir arg1 arg2 arg3 ... arg10");
+        exit(EXIT_FAILURE);
+    }
+
+    for(int i=3;i<argc;i++)
+    {   
+        if(debug_mode)
+            {
+               printf("argv[%d] %s\n",i,argv[i]);
+            }
+
+
+        if(isDirector(argv[i]))
+        {
+            char snapshot_name[20];
+            snprintf(snapshot_name, 20, "snapshot_%d", i-2);
+
+            if(debug_mode)
+            {
+               printf("argv[2] %s\n",argv[2]);
+            }
+            int snapshot_fd = createSnapshot(snapshot_name,argv[2]);
+
+            if(debug_mode)
+            {
+                printf("snapshot_name  %s\n",snapshot_name);
+            }   
+
+            parcurgeDirector(argv[i], snapshot_fd);
+
+            close(snapshot_fd);
+        }
+    }
+
+
+    ///// functia de parcurgere 
+
+    if(debug_mode)
+    {
+        printf("Success.\n");
+    }
 
     return EXIT_SUCCESS;
 }

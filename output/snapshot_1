@@ -1,82 +1,82 @@
-(Director)  Director_1//Director_1_3
+(Director)  Director_1/Director_1_3
 Nume: Director_1_3
 Dimensiune: 4096 bytes
 I-Node: 535713
 Data ultimei modificări: Mon Apr  1 22:16:57 2024
 -----------------------------
-(Director)  Director_1//Director_1_3/Director_3_1
+(Director)  Director_1/Director_1_3/Director_3_1
 Nume: Director_3_1
 Dimensiune: 4096 bytes
 I-Node: 526476
 Data ultimei modificări: Mon Apr  1 22:17:23 2024
 -----------------------------
-(Fisier)    Director_1//Director_1_3/Director_3_1/Fisier_3_2.txt
+(Fisier)    Director_1/Director_1_3/Director_3_1/Fisier_3_2.txt
 Nume: Fisier_3_2.txt
 Dimensiune: 0 bytes
 I-Node: 526921
 Data ultimei modificări: Mon Apr  1 22:14:51 2024
 -----------------------------
-(Fisier)    Director_1//Director_1_3/Director_3_1/Fisier_3_1.txt
+(Fisier)    Director_1/Director_1_3/Director_3_1/Fisier_3_1.txt
 Nume: Fisier_3_1.txt
 Dimensiune: 0 bytes
 I-Node: 535721
 Data ultimei modificări: Mon Apr  1 22:14:51 2024
 -----------------------------
-(Director)  Director_1//Director_1_3/Director_3_2
+(Director)  Director_1/Director_1_3/Director_3_2
 Nume: Director_3_2
 Dimensiune: 4096 bytes
 I-Node: 535726
 Data ultimei modificări: Mon Apr  1 22:17:39 2024
 -----------------------------
-(Fisier)    Director_1//Director_1_3/Director_3_2/Fisier_3_1.txt
+(Fisier)    Director_1/Director_1_3/Director_3_2/Fisier_3_1.txt
 Nume: Fisier_3_1.txt
 Dimensiune: 12 bytes
 I-Node: 535505
 Data ultimei modificări: Mon Apr  1 23:32:22 2024
 -----------------------------
-(Director)  Director_1//Director_1_2
+(Director)  Director_1/Director_1_2
 Nume: Director_1_2
 Dimensiune: 4096 bytes
 I-Node: 535715
 Data ultimei modificări: Mon Apr  1 22:15:58 2024
 -----------------------------
-(Director)  Director_1//Director_1_2/Director_2_1
+(Director)  Director_1/Director_1_2/Director_2_1
 Nume: Director_2_1
 Dimensiune: 4096 bytes
 I-Node: 535483
 Data ultimei modificări: Mon Apr  1 22:16:37 2024
 -----------------------------
-(Fisier)    Director_1//Director_1_2/Director_2_1/Fisier_2.0_1.txt
+(Fisier)    Director_1/Director_1_2/Director_2_1/Fisier_2.0_1.txt
 Nume: Fisier_2.0_1.txt
 Dimensiune: 0 bytes
 I-Node: 535728
 Data ultimei modificări: Mon Apr  1 22:14:51 2024
 -----------------------------
-(Fisier)    Director_1//Director_1_2/Fisier_2_1.txt
+(Fisier)    Director_1/Director_1_2/Fisier_2_1.txt
 Nume: Fisier_2_1.txt
 Dimensiune: 0 bytes
 I-Node: 535724
 Data ultimei modificări: Mon Apr  1 22:14:51 2024
 -----------------------------
-(Director)  Director_1//Director_1_1
+(Director)  Director_1/Director_1_1
 Nume: Director_1_1
 Dimensiune: 4096 bytes
 I-Node: 535635
 Data ultimei modificări: Mon Apr  1 22:15:23 2024
 -----------------------------
-(Fisier)    Director_1//Director_1_1/Fisier_1_2.txt
+(Fisier)    Director_1/Director_1_1/Fisier_1_2.txt
 Nume: Fisier_1_2.txt
 Dimensiune: 0 bytes
 I-Node: 535692
 Data ultimei modificări: Mon Apr  1 22:14:51 2024
 -----------------------------
-(Fisier)    Director_1//Director_1_1/Fisier_1_3.txt
+(Fisier)    Director_1/Director_1_1/Fisier_1_3.txt
 Nume: Fisier_1_3.txt
 Dimensiune: 0 bytes
 I-Node: 535684
 Data ultimei modificări: Mon Apr  1 22:14:51 2024
 -----------------------------
-(Fisier)    Director_1//Director_1_1/Fisier_1_1.txt
+(Fisier)    Director_1/Director_1_1/Fisier_1_1.txt
 Nume: Fisier_1_1.txt
 Dimensiune: 0 bytes
 I-Node: 535722
