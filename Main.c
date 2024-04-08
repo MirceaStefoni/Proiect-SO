@@ -22,7 +22,7 @@ void printToFile(int fd, const char *str)
     }
 }
 
-void parcurgeDirector(const char *numeDirector, int snapshot_fd)
+void createSnapshot(const char *numeDirector, int snapshot_fd)
 {
     DIR *dir;
     struct dirent *entry;
@@ -88,13 +88,16 @@ void parcurgeDirector(const char *numeDirector, int snapshot_fd)
         printToFile(snapshot_fd, ctime(&fileStat.st_mtime));
         printToFile(snapshot_fd, "-----------------------------\n");
 
+
         if (S_ISDIR(fileStat.st_mode))
         {
-            parcurgeDirector(path, snapshot_fd);
+            createSnapshot(path, snapshot_fd);
         }
     }
 
     closedir(dir);
+   // close(snapshot_fd);
+
 }
 
 int isDirector(const char* path)
@@ -116,24 +119,145 @@ int isDirector(const char* path)
     return 0;
 }
 
-int createSnapshot(const char* snapshot_name, const char* output_name)
+int snapshotExist(const char* nume_path)
 {
-    char nume_path[100];
-    snprintf(nume_path, 100, "%s/%s",output_name, snapshot_name);
+
+    struct stat stat_buffer;
+
+    if(lstat(nume_path , &stat_buffer) == -1)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+void genereazaNumePath(int pozitie,const char* nume, const char* output, char* nume_path)
+{
+
+    char snapshot_name[20];
+    snprintf(snapshot_name, 20, "%s_%d",nume,pozitie-2);
+
+    snprintf(nume_path, 100, "%s/%s",output, snapshot_name);
+
+}
+
+int openSnapshot(const char* nume_path)
+{
+    int snapshot_fd = open(nume_path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
+    if (snapshot_fd == -1)
+    {
+        perror("open snapshot_fd");
+        exit(-1);
+    }
+    return snapshot_fd;
+}
+
+int comparare_snapshot(const char *file1, const char *file2)
+{
+    int BUF_SIZE = 1024;
+    int fd1, fd2;
+    ssize_t bytes_read1, bytes_read2;
+    char buf1[BUF_SIZE], buf2[BUF_SIZE];
+
+    // Deschide fiecare fișier în modul citire
+    fd1 = open(file1, O_RDONLY);
+    if (fd1 == -1)
+    {
+        perror("Eroare la deschiderea fișierului 1");
+        return 0;
+    }
+
+    fd2 = open(file2, O_RDONLY);
+    if (fd2 == -1)
+    {
+        perror("Eroare la deschiderea fișierului 2");
+        close(fd1);
+        return 0;
+    }
+
+    // Compară conținutul fișierelor
+    do {
+        bytes_read1 = read(fd1, buf1, BUF_SIZE);
+        bytes_read2 = read(fd2, buf2, BUF_SIZE);
+
+        if (bytes_read1 != bytes_read2)
+        {
+            if(debug_mode)
+            {
+                printf("Fișierele %s și %s au dimensiuni diferite.\n", file1, file2);
+            }
+            close(fd1);
+            close(fd2);
+            return 0;
+        }
+
+        if (memcmp(buf1, buf2, bytes_read1) != 0)
+        {
+            if(debug_mode)
+            {
+                printf("Conținutul fișierelor %s și %s este diferit.\n", file1, file2);
+            }
+            close(fd1);
+            close(fd2);
+            return 0;
+        }
+    } while (bytes_read1 > 0 && bytes_read2 > 0);
 
     if(debug_mode)
     {
-        printf("nume path: %s\n",nume_path);
+        printf("Conținutul fișierelor %s și %s este identic.\n", file1, file2);
     }
 
-    int snapshot_fd = open(nume_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    // Închide fișierele
+    close(fd1);
+    close(fd2);
 
-    if (snapshot_fd == -1) 
+    return 1;
+}
+
+int clonareSnapshot( const char *destination_file, const char *source_file)
+{
+    int BUF_SIZE = 1024;
+    int fd_source, fd_dest;
+    ssize_t bytes_read, bytes_written;
+    char buffer[BUF_SIZE];
+
+    // Deschide fișierul sursă în modul citire
+    fd_source = open(source_file, O_RDONLY);
+    if (fd_source == -1)
     {
-        perror("open");
-        exit(EXIT_FAILURE);
+        perror("Eroare la deschiderea fișierului sursă");
+        return -1;
     }
-    return snapshot_fd;
+
+    // Creează sau deschide fișierul destinație în modul scriere, cu drepturi de scriere și citire pentru utilizator
+    fd_dest = open(destination_file, O_WRONLY | O_CREAT , S_IRUSR | S_IWUSR);
+    if (fd_dest == -1)
+    {
+        perror("Eroare la deschiderea sau crearea fișierului destinație");
+        close(fd_source);
+        return -1;
+    }
+
+    // Copiază conținutul din fișierul sursă în fișierul destinație
+    while ((bytes_read = read(fd_source, buffer, BUF_SIZE)) > 0)
+    {
+        bytes_written = write(fd_dest, buffer, bytes_read);
+        if (bytes_written != bytes_read)
+        {
+            perror("Eroare la scrierea datelor în fișierul destinație");
+            close(fd_source);
+            close(fd_dest);
+            return -1;
+        }
+    }
+
+    // Închide fișierele
+    close(fd_source);
+    close(fd_dest);
+
+    return 0;
 }
 
 int main(int argc, char *argv[]) 
@@ -155,7 +279,7 @@ int main(int argc, char *argv[])
 
     for(int i=3;i<argc;i++)
     {   
-        if(debug_mode)
+        if(debug_mode)   ////////////////////////////////////////////////////
             {
                printf("argv[%d] %s\n",i,argv[i]);
             }
@@ -163,28 +287,66 @@ int main(int argc, char *argv[])
 
         if(isDirector(argv[i]))
         {
-            char snapshot_name[20];
-            snprintf(snapshot_name, 20, "snapshot_%d", i-2);
 
-            if(debug_mode)
+            char nume_path[100];
+            genereazaNumePath(i, "snapshot", argv[2], nume_path);
+
+
+            if(debug_mode) //////////////////////////////////////////////////
             {
                printf("argv[2] %s\n",argv[2]);
+               printf("nume_path %s\n",nume_path);
             }
-            int snapshot_fd = createSnapshot(snapshot_name,argv[2]);
 
-            if(debug_mode)
-            {
-                printf("snapshot_name  %s\n",snapshot_name);
-            }   
 
-            parcurgeDirector(argv[i], snapshot_fd);
+            if(snapshotExist(nume_path))
+            {  //DA
 
-            close(snapshot_fd);
+                if(debug_mode)
+                {
+                    printf("Snapshotul exista: \n");
+                }
+                char nume_path_aux[100];
+                genereazaNumePath(i, "snapshot_aux", argv[2], nume_path_aux);
+
+                int snapshot_fd_aux = openSnapshot(nume_path_aux);
+
+                createSnapshot(argv[i], snapshot_fd_aux);  // se face close la fd in create
+
+                close(snapshot_fd_aux);
+
+
+                if(comparare_snapshot(nume_path, nume_path_aux))
+                {   // Sunt identice
+                    unlink(nume_path_aux);
+                }
+                else
+                {   // Nu sunt identice
+                  
+                    clonareSnapshot(nume_path, nume_path_aux);
+                    unlink(nume_path_aux);
+                }
+                
+            }
+            else
+            { // NU
+
+                if(debug_mode)
+                {
+                    printf("Snapshotul nu exista: \n");
+                }
+
+                int snapshot_fd = openSnapshot(nume_path);
+
+                createSnapshot(argv[i], snapshot_fd);
+
+                close(snapshot_fd);
+
+            }
+
         }
     }
 
-
-    ///// functia de parcurgere 
 
     if(debug_mode)
     {
