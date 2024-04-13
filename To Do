@@ -1,2 +1,1 @@
-schimba numele snapshot-ului ca "snapshot_I-node" pentru a putea pune argumentele in orice ordine.
 modifica codul in main pentru a putea pune -o output in orice loc ca argument (verifica nume argument pentru a gasi -o, dupa -o se gaseste output si se salveaza numele)
