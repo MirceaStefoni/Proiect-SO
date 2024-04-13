@@ -9,6 +9,8 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <linux/limits.h>
+#include <sys/wait.h>
+#include <bits/waitflags.h>
 
 int debug_mode = 0;
 
@@ -132,11 +134,22 @@ int snapshotExist(const char* nume_path)
     return 1;
 }
 
-void genereazaNumePath(int pozitie,const char* nume, const char* output, char* nume_path)
+void genereazaNumePath(const char* nume,const char* folder_curent, const char* output, char* nume_path)
 {
 
-    char snapshot_name[20];
-    snprintf(snapshot_name, 20, "%s_%d",nume,pozitie-2);
+    struct stat fileStat;
+
+    if (lstat(folder_curent, &fileStat) < 0)
+    {
+        perror("stat");
+        exit(EXIT_FAILURE);
+    }
+
+    char inode_str[20];
+    snprintf(inode_str, sizeof(inode_str), "%ld", fileStat.st_ino);
+
+    char snapshot_name[50];
+    snprintf(snapshot_name, 50, "%s_%s",nume, inode_str);
 
     snprintf(nume_path, 100, "%s/%s",output, snapshot_name);
 
@@ -277,61 +290,71 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    for(int i=3;i<argc;i++)
-    {   
-        if(debug_mode)   ////////////////////////////////////////////////////
+    int wstatus;
+    pid_t cpid, w;
+
+    for (int i = 3; i < argc; i++)
+    {
+
+        cpid = fork();
+        if (cpid == -1)
+        {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+
+        if (cpid == 0) // Code executed by child
+        {
+            if (debug_mode)
             {
-               printf("argv[%d] %s\n",i,argv[i]);
+                printf("Procesul copil rulează...\n");
             }
 
-
-        if(isDirector(argv[i]))
-        {
+            if (debug_mode)
+            {
+                printf("argv[%d] %s\n", i, argv[i]);
+            }
 
             char nume_path[100];
-            genereazaNumePath(i, "snapshot", argv[2], nume_path);
+            genereazaNumePath("snapshot", argv[i], argv[2], nume_path);
 
-
-            if(debug_mode) //////////////////////////////////////////////////
+            if (debug_mode)
             {
-               printf("argv[2] %s\n",argv[2]);
-               printf("nume_path %s\n",nume_path);
+                printf("argv[2] %s\n", argv[2]);
+                printf("nume_path %s\n", nume_path);
             }
 
+            if (snapshotExist(nume_path))
+            { // DA
 
-            if(snapshotExist(nume_path))
-            {  //DA
-
-                if(debug_mode)
+                if (debug_mode)
                 {
                     printf("Snapshotul exista: \n");
                 }
                 char nume_path_aux[100];
-                genereazaNumePath(i, "snapshot_aux", argv[2], nume_path_aux);
+                genereazaNumePath("snapshot_aux", argv[i], argv[2], nume_path_aux);
 
                 int snapshot_fd_aux = openSnapshot(nume_path_aux);
 
-                createSnapshot(argv[i], snapshot_fd_aux);  // se face close la fd in create
+                createSnapshot(argv[i], snapshot_fd_aux); // se face close la fd in create
 
                 close(snapshot_fd_aux);
 
-
-                if(comparare_snapshot(nume_path, nume_path_aux))
-                {   // Sunt identice
+                if (comparare_snapshot(nume_path, nume_path_aux))
+                { // Sunt identice
                     unlink(nume_path_aux);
                 }
                 else
-                {   // Nu sunt identice
-                  
+                { // Nu sunt identice
+
                     clonareSnapshot(nume_path, nume_path_aux);
                     unlink(nume_path_aux);
                 }
-                
             }
             else
             { // NU
 
-                if(debug_mode)
+                if (debug_mode)
                 {
                     printf("Snapshotul nu exista: \n");
                 }
@@ -341,65 +364,73 @@ int main(int argc, char *argv[])
                 createSnapshot(argv[i], snapshot_fd);
 
                 close(snapshot_fd);
-
             }
 
+            if (debug_mode)
+            {
+                printf("Procesul copil s-a încheiat.\n");
+            }
+
+            exit(0);
+        }
+        else // Code executed by parent
+        {
+            do
+            {
+
+                w = wait(&wstatus);
+                if (w == -1)
+                {
+                    perror("wait");
+                    exit(EXIT_FAILURE);
+                }
+
+                if (WIFEXITED(wstatus))
+                {
+                    if (debug_mode)
+                    {
+                        printf("exited, status=%d\n", WEXITSTATUS(wstatus));
+                    }
+                }
+                else
+                {
+                    if (WIFSIGNALED(wstatus))
+                    {
+                        if (debug_mode)
+                        {
+                            printf("killed by signal %d\n", WTERMSIG(wstatus));
+                        }
+                    }
+                    else
+                    {
+                        if (WIFSTOPPED(wstatus))
+                        {
+                            if (debug_mode)
+                            {
+                                printf("stopped by signal %d\n", WSTOPSIG(wstatus));
+                            }
+                        }
+                        else
+                        {
+                            if (WIFCONTINUED(wstatus))
+                            {
+                                if (debug_mode)
+                                {
+                                    printf("continued\n");
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
         }
     }
 
-
-    if(debug_mode)
+    if (debug_mode)
     {
         printf("Success.\n");
     }
 
     return EXIT_SUCCESS;
 }
-
-/*
-#include <stdint.h>
-       #include <stdio.h>
-       #include <stdlib.h>
-       #include <sys/wait.h>
-       #include <unistd.h>
-
-       int
-       main(int argc, char *argv[])
-       {
-           int    wstatus;
-           pid_t  cpid, w;
-
-           cpid = fork();
-           if (cpid == -1) {
-               perror("fork");
-               exit(EXIT_FAILURE);
-           }
-
-           if (cpid == 0) {            // Code executed by child 
-               printf("Child PID is %jd\n", (intmax_t) getpid());
-               if (argc == 1)
-                   pause();                    // Wait for signals 
-               _exit(atoi(argv[1]));
-
-           } else {                    // Code executed by parent 
-               do {
-                   w = waitpid(cpid, &wstatus, WUNTRACED | WCONTINUED);
-                   if (w == -1) {
-                       perror("waitpid");
-                       exit(EXIT_FAILURE);
-                   }
-
-                   if (WIFEXITED(wstatus)) {
-                       printf("exited, status=%d\n", WEXITSTATUS(wstatus));
-                   } else if (WIFSIGNALED(wstatus)) {
-                       printf("killed by signal %d\n", WTERMSIG(wstatus));
-                   } else if (WIFSTOPPED(wstatus)) {
-                       printf("stopped by signal %d\n", WSTOPSIG(wstatus));
-                   } else if (WIFCONTINUED(wstatus)) {
-                       printf("continued\n");
-                   }
-               } while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
-               exit(EXIT_SUCCESS);
-           }
-       }
-       */
