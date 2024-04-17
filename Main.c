@@ -59,11 +59,44 @@ void createSnapshot(const char *numeDirector, int snapshot_fd)
             printToFile(snapshot_fd,dir_msg);
         }
 
-        if (S_ISREG(fileStat.st_mode)) 
+        if (S_ISREG(fileStat.st_mode))    // verifica daca e fisier
         {
-            char file_msg[PATH_MAX];
-            snprintf(file_msg, sizeof(file_msg), "(Fisier)    %s\n", path);
-            printToFile(snapshot_fd,file_msg);
+
+            if (fileStat.st_mode & S_IRWXU & S_IRWXG & S_IRWXO)
+            {
+                int wstatus;
+                pid_t cpid, w;
+
+                cpid = fork();
+                if (cpid == -1)
+                {
+                    perror("fork");
+                    exit(EXIT_FAILURE);
+                }
+                if (cpid == 0) // Code executed by child
+                {
+
+                    // execlp("./script_cautare.bash","path", NULL);
+                    // execlp("ls","ls","-l",NULL);
+                    //////////////
+                    printf("eroare in c8chil\n");
+
+                    exit(0);
+                }
+        
+
+                    w = wait(&wstatus);
+                    if (w == -1)
+                    {
+                        perror("wait");
+                        exit(EXIT_FAILURE);
+                    }
+                
+
+                char file_msg[PATH_MAX];
+                snprintf(file_msg, sizeof(file_msg), "(Fisier)    %s\n", path);
+                printToFile(snapshot_fd, file_msg);
+            }
         }
 
         if (S_ISLNK(fileStat.st_mode)) 
@@ -273,6 +306,8 @@ int clonareSnapshot( const char *destination_file, const char *source_file)
     return 0;
 }
 
+
+
 int main(int argc, char *argv[]) 
 {
     
@@ -284,146 +319,177 @@ int main(int argc, char *argv[])
         printf("argc = %d\n",argc);
     }
 
-    if (argc < 4 || argc > 13) // minim 1  -  max 10
+    int pozitie_output;
+    int pozitie_izolare;
+
+    if (argc < 5 || argc > 13) // minim 1  -  max 10
     {        
-        perror("Utilizare incorecta:  ./p -o output_dir arg1 arg2 arg3 ... arg10");
+        perror("Utilizare incorecta\n");
         exit(EXIT_FAILURE);
     }
+
+    for(int i = 1; i < argc; i++)
+    {
+        if(strcmp(argv[i],"-o") == 0)
+        {
+            pozitie_output = i;
+        }
+
+        if(strcmp(argv[i],"-x") == 0)
+        {
+            pozitie_izolare = i;
+        }
+    }
+
 
     int wstatus;
     pid_t cpid, w;
 
-    for (int i = 3; i < argc; i++)
+    for (int i = 1; i < argc; i++)
     {
 
-        cpid = fork();
-        if (cpid == -1)
+        if (debug_mode)
         {
-            perror("fork");
-            exit(EXIT_FAILURE);
+            printf("argv[%d] %s\n", i, argv[i]);
+        }
+       
+        if(i == pozitie_output || i == pozitie_output + 1 || i == pozitie_izolare || i == pozitie_izolare + 1)
+        {
+            continue;
         }
 
-        if (cpid == 0) // Code executed by child
+
+        if (isDirector(argv[i]))
         {
-            if (debug_mode)
+
+            cpid = fork();
+            if (cpid == -1)
             {
-                printf("Procesul copil rulează...\n");
+                perror("fork");
+                exit(EXIT_FAILURE);
             }
 
-            if (debug_mode)
+            if (cpid == 0) // Code executed by child
             {
-                printf("argv[%d] %s\n", i, argv[i]);
-            }
-
-            char nume_path[100];
-            genereazaNumePath("snapshot", argv[i], argv[2], nume_path);
-
-            if (debug_mode)
-            {
-                printf("argv[2] %s\n", argv[2]);
-                printf("nume_path %s\n", nume_path);
-            }
-
-            if (snapshotExist(nume_path))
-            { // DA
+                if (debug_mode)
+                {
+                    printf("Procesul copil rulează...\n");
+                }
 
                 if (debug_mode)
                 {
-                    printf("Snapshotul exista: \n");
+                    printf("argv[%d] %s\n", i, argv[i]);
                 }
-                char nume_path_aux[100];
-                genereazaNumePath("snapshot_aux", argv[i], argv[2], nume_path_aux);
 
-                int snapshot_fd_aux = openSnapshot(nume_path_aux);
-
-                createSnapshot(argv[i], snapshot_fd_aux); // se face close la fd in create
-
-                close(snapshot_fd_aux);
-
-                if (comparare_snapshot(nume_path, nume_path_aux))
-                { // Sunt identice
-                    unlink(nume_path_aux);
-                }
-                else
-                { // Nu sunt identice
-
-                    clonareSnapshot(nume_path, nume_path_aux);
-                    unlink(nume_path_aux);
-                }
-            }
-            else
-            { // NU
+                char nume_path[100];
+                genereazaNumePath("snapshot", argv[i], argv[pozitie_output + 1 ], nume_path);
 
                 if (debug_mode)
                 {
-                    printf("Snapshotul nu exista: \n");
+                    printf("nume_path %s\n", nume_path);
                 }
 
-                int snapshot_fd = openSnapshot(nume_path);
+                if (snapshotExist(nume_path))
+                { // DA
 
-                createSnapshot(argv[i], snapshot_fd);
-
-                close(snapshot_fd);
-            }
-
-            if (debug_mode)
-            {
-                printf("Procesul copil s-a încheiat.\n");
-            }
-
-            exit(0);
-        }
-        else // Code executed by parent
-        {
-            do
-            {
-
-                w = wait(&wstatus);
-                if (w == -1)
-                {
-                    perror("wait");
-                    exit(EXIT_FAILURE);
-                }
-
-                if (WIFEXITED(wstatus))
-                {
                     if (debug_mode)
                     {
-                        printf("exited, status=%d\n", WEXITSTATUS(wstatus));
+                        printf("Snapshotul exista: \n");
+                    }
+                    char nume_path_aux[100];
+                    genereazaNumePath("snapshot_aux", argv[i], argv[pozitie_output + 1], nume_path_aux);
+
+                    int snapshot_fd_aux = openSnapshot(nume_path_aux);
+
+                    createSnapshot(argv[i], snapshot_fd_aux); // se face close la fd in create
+
+                    close(snapshot_fd_aux);
+
+                    if (comparare_snapshot(nume_path, nume_path_aux))
+                    { // Sunt identice
+                        unlink(nume_path_aux);
+                    }
+                    else
+                    { // Nu sunt identice
+
+                        clonareSnapshot(nume_path, nume_path_aux);
+                        unlink(nume_path_aux);
                     }
                 }
                 else
+                { // NU
+
+                    if (debug_mode)
+                    {
+                        printf("Snapshotul nu exista: \n");
+                    }
+
+                    int snapshot_fd = openSnapshot(nume_path);
+
+                    createSnapshot(argv[i], snapshot_fd);
+
+                    close(snapshot_fd);
+                }
+
+                if (debug_mode)
                 {
-                    if (WIFSIGNALED(wstatus))
+                    printf("Procesul copil s-a încheiat.\n");
+                }
+
+                exit(0);
+            }
+            else // Code executed by parent
+            {
+                do
+                {
+
+                    w = wait(&wstatus);
+                    if (w == -1)
+                    {
+                        perror("wait");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    if (WIFEXITED(wstatus))
                     {
                         if (debug_mode)
                         {
-                            printf("killed by signal %d\n", WTERMSIG(wstatus));
+                            printf("exited, status=%d\n", WEXITSTATUS(wstatus));
                         }
                     }
                     else
                     {
-                        if (WIFSTOPPED(wstatus))
+                        if (WIFSIGNALED(wstatus))
                         {
                             if (debug_mode)
                             {
-                                printf("stopped by signal %d\n", WSTOPSIG(wstatus));
+                                printf("killed by signal %d\n", WTERMSIG(wstatus));
                             }
                         }
                         else
                         {
-                            if (WIFCONTINUED(wstatus))
+                            if (WIFSTOPPED(wstatus))
                             {
                                 if (debug_mode)
                                 {
-                                    printf("continued\n");
+                                    printf("stopped by signal %d\n", WSTOPSIG(wstatus));
+                                }
+                            }
+                            else
+                            {
+                                if (WIFCONTINUED(wstatus))
+                                {
+                                    if (debug_mode)
+                                    {
+                                        printf("continued\n");
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-            } while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
+                } while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
+            }
         }
     }
 
