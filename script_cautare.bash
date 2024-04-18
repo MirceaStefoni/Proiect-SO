@@ -1,10 +1,19 @@
 #!/bin/bash
 
-fisier=$1
+file_path="$1"
+destinatie="$2"
 
-# Cautăm cuvântul "key" în fișier
-if grep -q "corupted" "dangerous" "risk" "attack" "malware" "malicious" "$fisier"; then
-    echo "Cuvântul 'key' a fost găsit în fișierul $fisier"
+chmod 777 "$file_path"
+
+if grep -q -P '[^\x00-\x7F]' "$file_path"
+then 
+    mv "$file_path" "$destinatie"
+    exit 1
+fi
+if grep -q -E 'malware|dangerous|risk|attack' "$file_path"
+then
+    mv "$file_path" "$destinatie"
+    exit 1
 else
-    echo "Cuvântul 'key' nu a fost găsit în fișierul $fisier"
+    exit 0
 fi

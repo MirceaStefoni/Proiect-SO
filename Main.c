@@ -24,7 +24,7 @@ void printToFile(int fd, const char *str)
     }
 }
 
-void createSnapshot(const char *numeDirector, int snapshot_fd)
+void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_carantina)
 {
     DIR *dir;
     struct dirent *entry;
@@ -61,9 +61,13 @@ void createSnapshot(const char *numeDirector, int snapshot_fd)
 
         if (S_ISREG(fileStat.st_mode))    // verifica daca e fisier
         {
-
-            if (fileStat.st_mode & S_IRWXU & S_IRWXG & S_IRWXO)
+            if ((fileStat.st_mode & S_IRWXU) == 0 && (fileStat.st_mode & S_IRWXG) == 0 && (fileStat.st_mode & S_IRWXO) == 0) 
             {
+                if(debug_mode)
+                {
+                    printf("fisierul %s nu are drepturi\n", path);
+                }
+                
                 int wstatus;
                 pid_t cpid, w;
 
@@ -75,28 +79,27 @@ void createSnapshot(const char *numeDirector, int snapshot_fd)
                 }
                 if (cpid == 0) // Code executed by child
                 {
+                  
+                    execlp("./script_cautare.bash", "script_cautare.bash", path, path_carantina, NULL);
 
-                    // execlp("./script_cautare.bash","path", NULL);
-                    // execlp("ls","ls","-l",NULL);
-                    //////////////
-                    printf("eroare in c8chil\n");
 
-                    exit(0);
+                    perror("copil script");
+
+                    exit(-1);
                 }
-        
 
-                    w = wait(&wstatus);
-                    if (w == -1)
-                    {
-                        perror("wait");
-                        exit(EXIT_FAILURE);
-                    }
-                
-
-                char file_msg[PATH_MAX];
-                snprintf(file_msg, sizeof(file_msg), "(Fisier)    %s\n", path);
-                printToFile(snapshot_fd, file_msg);
+                w = wait(&wstatus);
+                if (w == -1)
+                {
+                    perror("wait");
+                    exit(EXIT_FAILURE);
+                }
             }
+             
+            char file_msg[PATH_MAX];
+            snprintf(file_msg, sizeof(file_msg), "(Fisier)    %s\n", path);
+            printToFile(snapshot_fd, file_msg);
+
         }
 
         if (S_ISLNK(fileStat.st_mode)) 
@@ -126,13 +129,11 @@ void createSnapshot(const char *numeDirector, int snapshot_fd)
 
         if (S_ISDIR(fileStat.st_mode))
         {
-            createSnapshot(path, snapshot_fd);
+            createSnapshot(path, snapshot_fd, path_carantina);
         }
     }
 
     closedir(dir);
-   // close(snapshot_fd);
-
 }
 
 int isDirector(const char* path)
@@ -341,7 +342,6 @@ int main(int argc, char *argv[])
         }
     }
 
-
     int wstatus;
     pid_t cpid, w;
 
@@ -390,7 +390,7 @@ int main(int argc, char *argv[])
                 }
 
                 if (snapshotExist(nume_path))
-                { // DA
+                { // DA exista
 
                     if (debug_mode)
                     {
@@ -401,7 +401,7 @@ int main(int argc, char *argv[])
 
                     int snapshot_fd_aux = openSnapshot(nume_path_aux);
 
-                    createSnapshot(argv[i], snapshot_fd_aux); // se face close la fd in create
+                    createSnapshot(argv[i], snapshot_fd_aux, argv[pozitie_izolare + 1]); // se face close la fd in create
 
                     close(snapshot_fd_aux);
 
@@ -417,7 +417,7 @@ int main(int argc, char *argv[])
                     }
                 }
                 else
-                { // NU
+                { // NU exista
 
                     if (debug_mode)
                     {
@@ -426,7 +426,7 @@ int main(int argc, char *argv[])
 
                     int snapshot_fd = openSnapshot(nume_path);
 
-                    createSnapshot(argv[i], snapshot_fd);
+                    createSnapshot(argv[i], snapshot_fd, argv[pozitie_izolare + 1]);
 
                     close(snapshot_fd);
                 }
