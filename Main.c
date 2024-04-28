@@ -13,7 +13,7 @@
 #include <bits/waitflags.h>
 
 int debug_mode = 0;
-
+int contor_fisier_malecios = 0;
 
 void printToFile(int fd, const char *str)
 {
@@ -68,8 +68,19 @@ void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_
                     printf("fisierul %s nu are drepturi\n", path);
                 }
                 
+
+                int pfd[2];
+                FILE *stream;
+                char string[50];
+
                 int wstatus;
                 pid_t cpid, w;
+
+                if(pipe(pfd)<0)
+                {
+                    perror("pipe");
+                    exit(EXIT_FAILURE);
+                }
 
                 cpid = fork();
                 if (cpid == -1)
@@ -77,15 +88,58 @@ void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_
                     perror("fork");
                     exit(EXIT_FAILURE);
                 }
-                if (cpid == 0) // Code executed by child
+                if (cpid == 0) // Code Executed by child
                 {
-                  
-                    execlp("./script_cautare.bash", "script_cautare.bash", path, path_carantina, NULL);
+                    close(pfd[0]);  // Inchide capatul de citire
 
+                    dup2(pfd[1],1); // Redirectare iesire standard spre pipe
 
-                    perror("copil script");
+                    execlp("./script_cautare.bash", "script_cautare.bash", path, NULL);  // Executa script verificare
 
-                    exit(-1);
+                    perror("Eroare execlp");
+
+                    exit(EXIT_FAILURE);
+                }
+                // Code Executed by parent
+
+                close(pfd[1]); // Inchide capatul de scriere
+                
+                stream=fdopen(pfd[0],"r");
+
+                fscanf(stream, "%s",string);
+
+                close(pfd[0]);
+
+                // string are rezultatul
+
+                if (strcmp("RISK", string) == 0)
+                {
+                    if (debug_mode)
+                    {
+                        printf("RISK\n");
+
+                        printf("Path %s\n", path);
+
+                        printf("Carantina %s\n", path_carantina);
+                    }
+
+                    contor_fisier_malecios = contor_fisier_malecios +1;
+
+                    char path_carantina_fisier[1060];
+
+                    snprintf(path_carantina_fisier, sizeof(path_carantina_fisier), "%s/%s", path_carantina, entry->d_name);
+
+                    if (debug_mode)
+                    {
+                        printf("Carantina iesire %s\n", path_carantina_fisier);
+                    }
+
+                    if (rename(path,path_carantina_fisier) != 0)   // Mutare
+                    {
+                        perror("rename");
+                        exit(EXIT_FAILURE);
+                    }
+                    continue;
                 }
 
                 w = wait(&wstatus);
@@ -307,8 +361,6 @@ int clonareSnapshot( const char *destination_file, const char *source_file)
     return 0;
 }
 
-
-
 int main(int argc, char *argv[]) 
 {
     
@@ -361,7 +413,7 @@ int main(int argc, char *argv[])
 
         if (isDirector(argv[i]))
         {
-
+            contor_fisier_malecios = 0;
             cpid = fork();
             if (cpid == -1)
             {
@@ -436,13 +488,13 @@ int main(int argc, char *argv[])
                     printf("Procesul copil s-a încheiat.\n");
                 }
 
-                exit(0);
+                exit(contor_fisier_malecios);
             }
             else // Code executed by parent
             {
                 do
                 {
-
+                   
                     w = wait(&wstatus);
                     if (w == -1)
                     {
@@ -452,6 +504,11 @@ int main(int argc, char *argv[])
 
                     if (WIFEXITED(wstatus))
                     {
+                        char mesaj[200];
+                        snprintf(mesaj,sizeof(mesaj),"Directorul %s, a avut %d fisiere periculoase\n",argv[i],WEXITSTATUS(wstatus));
+                        //printf("Contor: %d\n", WEXITSTATUS(wstatus));
+                        printToFile(1,mesaj);
+
                         if (debug_mode)
                         {
                             printf("exited, status=%d\n", WEXITSTATUS(wstatus));
@@ -490,6 +547,7 @@ int main(int argc, char *argv[])
 
                 } while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
             }
+
         }
     }
 
