@@ -15,7 +15,7 @@
 int debug_mode = 0;
 int contor_fisier_malecios = 0;
 
-void printToFile(int fd, const char *str)
+void printToFile(int fd, const char *str)      // Functie custom pentru Write
 {
     if (write(fd, str, strlen(str)) == -1)
     {
@@ -24,7 +24,7 @@ void printToFile(int fd, const char *str)
     }
 }
 
-void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_carantina)
+void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_carantina)    // Functie care creaza un snapshot sau lanzeaz un proces in caz de fisier fara drepturi
 {
     DIR *dir;
     struct dirent *entry;
@@ -61,7 +61,7 @@ void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_
 
         if (S_ISREG(fileStat.st_mode))    // verifica daca e fisier
         {
-            if ((fileStat.st_mode & S_IRWXU) == 0 && (fileStat.st_mode & S_IRWXG) == 0 && (fileStat.st_mode & S_IRWXO) == 0) 
+            if ((fileStat.st_mode & S_IRWXU) == 0 && (fileStat.st_mode & S_IRWXG) == 0 && (fileStat.st_mode & S_IRWXO) == 0) // verifica daca nu are drepturi
             {
                 if(debug_mode)
                 {
@@ -104,7 +104,7 @@ void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_
 
                 close(pfd[1]); // Inchide capatul de scriere
                 
-                stream=fdopen(pfd[0],"r");
+                stream=fdopen(pfd[0],"r");  // Deschide stream-ul pentru citire
 
                 fscanf(stream, "%s",string);
 
@@ -112,7 +112,7 @@ void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_
 
                 // string are rezultatul
 
-                if (strcmp("RISK", string) == 0)
+                if (strcmp("RISK", string) == 0)  // Daca este Risk
                 {
                     if (debug_mode)
                     {
@@ -123,11 +123,11 @@ void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_
                         printf("Carantina %s\n", path_carantina);
                     }
 
-                    contor_fisier_malecios = contor_fisier_malecios +1;
+                    contor_fisier_malecios = contor_fisier_malecios +1;  // Numara fisierele compromise
 
                     char path_carantina_fisier[1060];
 
-                    snprintf(path_carantina_fisier, sizeof(path_carantina_fisier), "%s/%s", path_carantina, entry->d_name);
+                    snprintf(path_carantina_fisier, sizeof(path_carantina_fisier), "%s/%s", path_carantina, entry->d_name);  // Creaza outputul_carantina
 
                     if (debug_mode)
                     {
@@ -190,7 +190,7 @@ void createSnapshot(const char *numeDirector, int snapshot_fd, const char* path_
     closedir(dir);
 }
 
-int isDirector(const char* path)
+int isDirector(const char* path)   // Verifica daca este director
 {
     struct stat fileStat;
 
@@ -209,7 +209,7 @@ int isDirector(const char* path)
     return 0;
 }
 
-int snapshotExist(const char* nume_path)
+int snapshotExist(const char* nume_path)  // Verifica daca exista deja un snapshot cu acelasi nume
 {
 
     struct stat stat_buffer;
@@ -222,7 +222,7 @@ int snapshotExist(const char* nume_path)
     return 1;
 }
 
-void genereazaNumePath(const char* nume,const char* folder_curent, const char* output, char* nume_path)
+void genereazaNumePath(const char* nume,const char* folder_curent, const char* output, char* nume_path)   // Genereaza numele iesirii
 {
 
     struct stat fileStat;
@@ -243,7 +243,7 @@ void genereazaNumePath(const char* nume,const char* folder_curent, const char* o
 
 }
 
-int openSnapshot(const char* nume_path)
+int openSnapshot(const char* nume_path)   // Deschide snapshot si il initializeaza
 {
     int snapshot_fd = open(nume_path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
     if (snapshot_fd == -1)
@@ -254,7 +254,7 @@ int openSnapshot(const char* nume_path)
     return snapshot_fd;
 }
 
-int comparare_snapshot(const char *file1, const char *file2)
+int comparare_snapshot(const char *file1, const char *file2)  // Compara doua snapshoturi binar
 {
     int BUF_SIZE = 1024;
     int fd1, fd2;
@@ -282,7 +282,7 @@ int comparare_snapshot(const char *file1, const char *file2)
         bytes_read1 = read(fd1, buf1, BUF_SIZE);
         bytes_read2 = read(fd2, buf2, BUF_SIZE);
 
-        if (bytes_read1 != bytes_read2)
+        if (bytes_read1 != bytes_read2)  // Verifica daca exista diferente de dimensiune
         {
             if(debug_mode)
             {
@@ -293,7 +293,7 @@ int comparare_snapshot(const char *file1, const char *file2)
             return 0;
         }
 
-        if (memcmp(buf1, buf2, bytes_read1) != 0)
+        if (memcmp(buf1, buf2, bytes_read1) != 0)  // Verifica daca sunt identice
         {
             if(debug_mode)
             {
@@ -375,13 +375,25 @@ int main(int argc, char *argv[])
     int pozitie_output;
     int pozitie_izolare;
 
-    if (argc < 5 || argc > 13) // minim 1  -  max 10
+    if (argc < 6 || argc > 15) // minim 1  -  max 10 Argumente
     {        
         perror("Utilizare incorecta\n");
         exit(EXIT_FAILURE);
     }
 
-    for(int i = 1; i < argc; i++)
+    for (int i = 1; i < argc; i++)  // Verifica daca exista duplicare de argumente
+    {
+        for (int j = i + 1; j < argc; j++)
+        {
+            if (strcmp(argv[i], argv[j]) == 0)
+            {
+                perror("Duplicare de argumente");
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+    for (int i = 1; i < argc; i++)  // Ia pozitia output-ului si a output-ului carantina
     {
         if(strcmp(argv[i],"-o") == 0)
         {
@@ -405,7 +417,7 @@ int main(int argc, char *argv[])
             printf("argv[%d] %s\n", i, argv[i]);
         }
        
-        if(i == pozitie_output || i == pozitie_output + 1 || i == pozitie_izolare || i == pozitie_izolare + 1)
+        if(i == pozitie_output || i == pozitie_output + 1 || i == pozitie_izolare || i == pozitie_izolare + 1)  // sare peste output-uri si peste tag-uri
         {
             continue;
         }
@@ -434,30 +446,31 @@ int main(int argc, char *argv[])
                 }
 
                 char nume_path[100];
-                genereazaNumePath("snapshot", argv[i], argv[pozitie_output + 1 ], nume_path);
+                genereazaNumePath("snapshot", argv[i], argv[pozitie_output + 1 ], nume_path);  // Genereaza nume snapshot
 
                 if (debug_mode)
                 {
                     printf("nume_path %s\n", nume_path);
                 }
 
-                if (snapshotExist(nume_path))
+                if (snapshotExist(nume_path))  // Verifica daca exista
                 { // DA exista
 
                     if (debug_mode)
                     {
                         printf("Snapshotul exista: \n");
                     }
+
                     char nume_path_aux[100];
-                    genereazaNumePath("snapshot_aux", argv[i], argv[pozitie_output + 1], nume_path_aux);
+                    genereazaNumePath("snapshot_aux", argv[i], argv[pozitie_output + 1], nume_path_aux);  // Genereaza nume snapshot auxiliar
 
                     int snapshot_fd_aux = openSnapshot(nume_path_aux);
 
-                    createSnapshot(argv[i], snapshot_fd_aux, argv[pozitie_izolare + 1]); // se face close la fd in create
+                    createSnapshot(argv[i], snapshot_fd_aux, argv[pozitie_izolare + 1]); // Creaza snapshot
 
                     close(snapshot_fd_aux);
 
-                    if (comparare_snapshot(nume_path, nume_path_aux))
+                    if (comparare_snapshot(nume_path, nume_path_aux))  // Compara continutul
                     { // Sunt identice
                         unlink(nume_path_aux);
                     }
@@ -478,7 +491,7 @@ int main(int argc, char *argv[])
 
                     int snapshot_fd = openSnapshot(nume_path);
 
-                    createSnapshot(argv[i], snapshot_fd, argv[pozitie_izolare + 1]);
+                    createSnapshot(argv[i], snapshot_fd, argv[pozitie_izolare + 1]);  // Creaza Snpashot
 
                     close(snapshot_fd);
                 }
@@ -505,9 +518,8 @@ int main(int argc, char *argv[])
                     if (WIFEXITED(wstatus))
                     {
                         char mesaj[200];
-                        snprintf(mesaj,sizeof(mesaj),"Directorul %s, a avut %d fisiere periculoase\n",argv[i],WEXITSTATUS(wstatus));
-                        //printf("Contor: %d\n", WEXITSTATUS(wstatus));
-                        printToFile(1,mesaj);
+                        snprintf(mesaj,sizeof(mesaj),"Procesul cu pid: %d. Directorul: %s, a avut %d fisiere periculoase\n",cpid, argv[i], WEXITSTATUS(wstatus));  // Genereza Mesaj
+                        printToFile(1,mesaj);  // Scrie la stdo
 
                         if (debug_mode)
                         {
